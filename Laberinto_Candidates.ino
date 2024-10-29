@@ -1,15 +1,16 @@
 #include <Wire.h>
 #include "Adafruit_TCS34725.h"
 #include <LiquidCrystal_I2C.h>
+#include <MPU6050.h>
 
 // Se definen todas las constantes y los pines
 
 // Motores con el puente H 
 // Se pueden cambiar los pines
-const int IN1 = 9;  // Motor A
-const int IN2 = 8;  // Motor A
-const int IN3 = 7;  // Motor B
-const int IN4 = 6;  // Motor B
+const int IN1 = 0;  // Motor A
+const int IN2 = 1;  // Motor A
+const int IN3 = 2;  // Motor B
+const int IN4 = 3;  // Motor B
 // Son para regular la velocidad en caso de que se necesite ir más rapido o más lento y deben de ir a PWM
 const int ENA = 12; // PWM
 const int ENB = 11; // PWM
@@ -17,13 +18,13 @@ const int ENB = 11; // PWM
 int movimiento = 0;
 
 // Sensor ultrasonico enfrente
-const int trig_frente = 2;
-const int echo_frente = 3; 
+const int trig_frente = 6;
+const int echo_frente = 7; 
 // Sensor ultrasonico izquierdo
-const int trig_izq = 4;
-const int echo_izq = 5; 
+const int trig_izq = 8;
+const int echo_izq = 9; 
 // Sensor ultrasonico derecho 
-const int trig_der = 1;
+const int trig_der = 10;
 const int echo_der = 13; 
 
 // Sensor de color 
@@ -37,6 +38,13 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 const int MAX_MOVIMIENTOS = 100;  // Se puede ajustar según el tamaño máximo de movimientos esperados
 int movimientos[MAX_MOVIMIENTOS];
 int indiceMovimientos = 0;
+
+// Giroscopio
+MPU6050 mpu;  // Sin argumentos en el constructor
+float currentAngle = 0;
+float targetAngle = 0;
+unsigned long lastTime;
+
 
 void setup() {
   // Configurar los pines como salida (puente H)
@@ -61,6 +69,28 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.clear();
+
+  // Giroscopio
+  Serial.begin(9600);
+  Wire.begin();
+  lastTime = millis();
+}
+
+// Función para obtener el ángulo actual
+float getAngleChange() {
+  int16_t gx, gy, gz;
+  mpu.getRotation(&gx, &gy, &gz);  // Obtiene los datos de rotación en los tres ejes
+
+  // Convierte gz (rotación en el eje Z) de la escala de MPU-6050 a grados/segundo
+  float degreesPerSecond = gz / 131.0;  // Escala para +/- 250 grados/segundo
+
+  // Calcula el tiempo transcurrido en segundos
+  unsigned long currentTime = millis();
+  float deltaTime = (currentTime - lastTime) / 1000.0;  // Convierte a segundos
+  lastTime = currentTime;
+
+  // Calcula el cambio de ángulo
+  return degreesPerSecond * deltaTime;
 }
 
 // Funciones de movimiento 
@@ -89,22 +119,30 @@ void retroceder() {
 void girarDerecha() {
   movimiento = 3;
   registrarMovimiento(movimiento);
-  digitalWrite(IN1, HIGH);  // Motor A hacia adelante
+  targetAngle = currentAngle + 90;
+  digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);   // Motor B hacia atrás
+  digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  delay(500); 
+  while (currentAngle < targetAngle) {
+    currentAngle += getAngleChange();
+    delay(10);
+  }
   detener();
 }
 
 void girarIzquierda() {
   movimiento = 4;
   registrarMovimiento(movimiento);
-  digitalWrite(IN1, LOW);   // Motor A hacia atrás
+  targetAngle = currentAngle - 90;
+  digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);  // Motor B hacia adelante
+  digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-  delay(500); 
+  while (currentAngle > targetAngle) {
+    currentAngle += getAngleChange();
+    delay(10);
+  }
   detener();
 }
 
@@ -116,11 +154,15 @@ void detener() {
 }
 
 void giro180(){
-  digitalWrite(IN1, LOW);   // Motor A hacia atrás
+  targetAngle = currentAngle + 180;
+  digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);  // Motor B hacia adelante
+  digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-  delay(1500); // Ajustar para cuando se de la vuelta 180 grados
+  while (currentAngle < targetAngle) {
+    currentAngle += getAngleChange();
+    delay(10);
+  }
   detener();
 }
 

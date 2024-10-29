@@ -1,6 +1,4 @@
 #include <Wire.h>
-#include "Adafruit_TCS34725.h"
-#include <LiquidCrystal_I2C.h>
 #include <Servo.h>
 #include <MPU6050.h>
 
@@ -23,13 +21,6 @@ const int echo_izq = 5;
 // Sensor ultrasonico derecho 
 const int trig_der = 1;
 const int echo_der = 13; 
-
-// Sensor de color 
-// Crear el objeto para el sensor de color
-Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
-
-// Crear objeto para la LCD 
-LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // Servomotores para la pala
 Servo servo1;  
@@ -57,13 +48,6 @@ void setup() {
   pinMode(echo_izq, INPUT);
   pinMode(trig_der, OUTPUT);
   pinMode(echo_der, INPUT);
-
-  // Sensor de color y LCD
-  tcs.begin();
-  // Iniciar la LCD
-  lcd.init();
-  lcd.backlight();
-  lcd.clear();
 
   // Servomotores
   servo1.attach(16);  
@@ -167,6 +151,49 @@ void moverDerecha(){
   avanzar();
 }
 
+// Clase Casilla
+class Casilla {
+  public:
+    String movimiento;    // Puede ser "avanzar", "mover izquierda", "mover derecha", etc.
+    int puntoDeInteres;   // Número de punto de interés en la casilla
+    
+    // Constructor
+    Casilla(String mov, int punto) : movimiento(mov), puntoDeInteres(punto) {}
+
+    // Método para ejecutar la acción de la casilla
+    void ejecutarMovimiento() {
+      if (movimiento == "avanzar") {
+        avanzar();
+      } else if (movimiento == "mover izquierda") {
+        moverIzquierda();
+      } else if (movimiento == "mover derecha") {
+        moverDerecha();
+      } 
+    }
+};
+// No se esta tomando en cuenta como primer paso la casilla que esta enfrente del checkpoint de inicio
+Casilla recorrido_clocwise[] = {
+  Casilla("mover izquierda", 0),
+  Casilla("mover derecha", 2),
+  Casilla("avanzar", 0),
+  Casilla("mover derecha", 3),
+  Casilla("avanzar", 0),
+  Casilla("mover derecha",4),
+  Casilla("avanzar",0),
+  Casilla("mover derecha",1)
+};
+
+Casilla recorrido_anticlockwise[]={
+  Casilla("avanzar",0),
+  Casilla("mover izquierda",4),
+  Casilla("avanzar",0),
+  Casilla("mover izquierda",3),
+  Casilla("avanzar",0),
+  Casilla("mover izquierda",2),
+  Casilla("avanzar",0),
+  Casilla("mover izquierda",1)
+};
+
 bool paredFrente () { // Si hay pared a menos de 15 o a 15 cm regresa true
   int distanciaUmbralFrente = 15;
   long duracion;
@@ -224,26 +251,6 @@ bool paredDerecha (){
   return (distancia <= distanciaUmbralDer);
 }
 
-bool detectarColor() {
-  uint16_t r, g, b, c;
-  tcs.getRawData(&r, &g, &b, &c);
-
-  // Normalizar valores de color
-  float red = r / (float)c * 255;
-  float green = g / (float)c * 255;
-  float blue = b / (float)c * 255;
-
-  // Mostrar valores de RGB en el Serial Monitor
-  Serial.print("R: "); Serial.print(red);
-  Serial.print(" G: "); Serial.print(green);
-  Serial.print(" B: "); Serial.println(blue);
-  if (red > 150 && green < 100 && blue < 100) {
-    lcd.clear();
-    lcd.print("Color: Rojo");
-    return true;
-    }
-}
-
 void agarrarPelota(){
   servo1.write(180);
   servo2.write(180);
@@ -252,83 +259,6 @@ void agarrarPelota(){
 }
 
 void loopPistaA(){
-  bool casillaPelota = false;
-  int casillaEntrada = 0;
-  while(casillaPelota == false){
-    avanzar();
-    if(paredFrente == false){
-      avanzar();
-      casillaEntrada = 1;
-      casillaPelota = true;
-    }
-    else {
-      girarIzquierda();
-      avanzar();
-      girarDerecha();
-      avanzar();
-      if(paredDerecha == false){
-        girarDerecha();
-        avanzar(); // programar una funcion que avance media casilla o algo asi 
-        casillaEntrada = 2;
-        casillaPelota = true;
-      }
-      else{
-        avanzar();
-        girarDerecha();
-        avanzar();
-        if (paredDerecha == false){
-          girarDerecha();
-          avanzar();
-          casillaEntrada = 3;
-          casillaPelota = true;
-        }
-        else{
-          avanzar();
-          girarDerecha();
-          avanzar();
-          if (paredDerecha == false){
-            girarDerecha();
-            avanzar();
-            casillaEntrada = 4;
-            casillaPelota = true;
-          }
-        }
-      }
-    }
-  }
-  agarrarPelota();
-  if(casillaEntrada == 1){
-    retroceder();
-    girarIzquierda();
-    avanzar();
-    girarDerecha();
-    avanzar(); // hacer funcion de avanzar dos casillas
-    avanzar();
-    girarDerecha();
-    avanzar();
-    girarIzquierda();
-  }
-  else if(casillaEntrada == 2){
-    retroceder();
-    girarIzquierda();
-    avanzar();
-    girarDerecha();
-    avanzar();
-    girarIzquierda();
-  }
-  else if(casillaEntrada == 3){
-    retroceder();
-    giro180();
-    avanzar();
-  }
-  else if(casillaEntrada == 4){
-    retroceder();
-    girarDerecha();
-    avanzar();
-    girarIzquierda();
-    avanzar();
-    girarDerecha();
-  }
 
 }
 
