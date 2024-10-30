@@ -259,7 +259,31 @@ void agarrarPelota(){
 }
 
 void loopPistaA(){
+  bool casillaPelota = false;
+  while(casillaPelota == false){
+    avanzar();
+    if(!paredFrente()){
+      avanzar();
+      agarrarPelota();
+      casillaPelota = true;
+    }
+    else{
+      for (int i = 0; i < sizeof(recorrido_clocwise) / sizeof(Casilla); i++) {
+        // Ejecuta el movimiento definido en la casilla actual
+        recorrido_clocwise[i].ejecutarMovimiento();
 
+        // Si el punto de interés es diferente de cero
+        if (recorrido_clocwise[i].puntoDeInteres != 0) {
+          // Verifica si no hay pared a la derecha
+          if (!paredDerecha()) {
+            casillaPelota = true;
+            agarrarPelota();
+            break; // Termina el recorrido si no hay pared a la derecha
+          }
+        }
+      }
+    }
+  }
 }
 
 void loop() {
