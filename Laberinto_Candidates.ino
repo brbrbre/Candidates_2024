@@ -406,6 +406,7 @@ void loop() {
   loopLaberinto();
 }
 
+// comentario
 
 // Faltante:
 // Checar si se imprime los colores cuando se llega a cada casilla, y checar lo de la rampa
